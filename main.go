@@ -10,9 +10,10 @@ func main() {
 	/**
 	 * Configs
 	 */
-	var qtdOps = 50                                  // Quantity of operations
+	var qtdOps = 1000                                // Quantity of operations
 	var totalMartingales = 1                         // Total of martingales. 0 = Without martingale, 1 = Martingale 1, 2 = Martingale 2
-	var assertsStruct = [3]float32{60.0, 85.0, 95.0} // Asserts for Win, G1, G2. Ex: 60.0 = 60%. Above third value, is Loss
+	var assertsStruct = [3]float32{59.0, 89.0, 95.0} // Asserts for Win, G1, G2. Ex: 60.0 = 60%. Above third value, is Loss
+	var jumpStep = 0                                 // Jump step for martingale; 0 = Do not Jump, 1 = Jump on Win, 2 = Jump on G1.
 
 	// Create file
 	f, err := os.Create("result.txt")
@@ -22,7 +23,8 @@ func main() {
 	defer f.Close()
 
 	// Run Martingale
-	for i := 0; i < qtdOps; i++ {
+	i := 0
+	for i < qtdOps {
 		// Get random number between 0 and 100
 		var random = getRandomNumber(0, 100)
 
@@ -30,7 +32,10 @@ func main() {
 		var result = checkAssert(random, totalMartingales, assertsStruct[:])
 
 		// Write file
-		writeFile(f, result, totalMartingales)
+		operated := writeFile(f, result, totalMartingales, jumpStep)
+		if operated {
+			i++
+		}
 	}
 }
 
@@ -63,21 +68,38 @@ func checkAssert(numAssert float32, martinGales int, asserts []float32) string {
 /**
  * Write file based on result
  */
-func writeFile(f *os.File, result string, martingales int) {
-	//fmt.Println("Recebido: ", result, martingales)
-
+func writeFile(f *os.File, result string, martingales int, jumpStep int) bool {
 	var content string
+
+	if result == "W" && jumpStep == 1 {
+		return false
+	}
+	if result == "G1" && jumpStep == 2 {
+		return false
+	}
 
 	if result == "W" {
 		content = fmt.Sprintf("W\n")
 	}
 	if martingales == 1 {
 		if result == "G1" {
-			content = fmt.Sprintf("L\nW\n")
+			if jumpStep == 0 {
+				content = fmt.Sprintf("L\nW\n")
+			}
+
+			if jumpStep == 1 {
+				content = fmt.Sprintf("W\n")
+			}
 		}
 
 		if result == "L" {
-			content = fmt.Sprintf("L\nL\n")
+			if jumpStep == 0 {
+				content = fmt.Sprintf("L\nL\n")
+			}
+
+			if jumpStep == 1 {
+				content = fmt.Sprintf("L\n")
+			}
 		}
 	}
 	if martingales == 2 {
@@ -101,4 +123,6 @@ func writeFile(f *os.File, result string, martingales int) {
 	if err != nil {
 		panic(err)
 	}
+
+	return true
 }
